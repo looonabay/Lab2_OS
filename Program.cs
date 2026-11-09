@@ -1,15 +1,11 @@
-﻿
+
 using System;
-using System.Threading;
 using System.Diagnostics;
 
 namespace Lab2_OS;
 
 class Program
 {
-    static int completedRows = 0;
-    static object locker = new object();
-
     static void Main()
     {
         Checked check = new Checked();
@@ -30,7 +26,6 @@ class Program
 
         int[,] A = new int[n, m];
         int[,] B = new int[m, k];
-        int[,] C = new int[n, k];
 
         Random random = new Random();
 
@@ -77,82 +72,17 @@ class Program
             }
         }
 
-        completedRows = 0;
-
-        Thread[] threads = new Thread[t];
-
-        int rowsPerThread = n / t;
-        int remainingRows = n % t;
-
-        int startRow = 0;
-
         Console.WriteLine("Прогресс: 0%");
 
         Stopwatch stopwatch = new Stopwatch();
         stopwatch.Start();
 
-        for (int i = 0; i < t; i++)
+        int[,] C = MatrixMultiplier.Multiply(A, B, t, progress =>
         {
-            int rows = rowsPerThread;
-
-            if (i < remainingRows)
-            {
-                rows++;
-            }
-
-            int endRow = startRow + rows;
-
-            int firstRow = startRow;
-            int lastRow = endRow;
-
-            threads[i] = new Thread(() =>
-            {
-                MultiplyRows(A, B, C, firstRow, lastRow);
-            });
-
-            threads[i].Start();
-
-            startRow = endRow;
-        }
-
-        int lastProgress = 0;
-
-        while (true)
-        {
-            int currentRows;
-
-            lock (locker)
-            {
-                currentRows = completedRows;
-            }
-
-            int progress = currentRows * 100 / n;
-
-            if (progress != lastProgress)
-            {
-                Console.WriteLine("Прогресс: " + progress + "%");
-                lastProgress = progress;
-            }
-
-            if (currentRows == n)
-            {
-                break;
-            }
-
-            Thread.Sleep(50);
-        }
-
-        for (int i = 0; i < t; i++)
-        {
-            threads[i].Join();
-        }
+            Console.WriteLine("Прогресс: " + progress + "%");
+        });
 
         stopwatch.Stop();
-
-        if (lastProgress < 100)
-        {
-            Console.WriteLine("Прогресс: 100%");
-        }
 
         Console.WriteLine("Время умножения: " +
                           stopwatch.ElapsedMilliseconds + " мс");
@@ -183,28 +113,5 @@ class Program
         }
 
         Console.WriteLine("Контрольная сумма: " + checksum);
-    }
-
-    static void MultiplyRows(int[,] A, int[,] B, int[,] C,
-        int startRow, int endRow)
-    {
-        int m = A.GetLength(1);
-        int k = B.GetLength(1);
-
-        for (int i = startRow; i < endRow; i++)
-        {
-            for (int j = 0; j < k; j++)
-            {
-                for (int p = 0; p < m; p++)
-                {
-                    C[i, j] += A[i, p] * B[p, j];
-                }
-            }
-
-            lock (locker)
-            {
-                completedRows++;
-            }
-        }
     }
 }
